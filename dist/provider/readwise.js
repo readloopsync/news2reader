@@ -153,7 +153,7 @@ export default class ReadwiseProvider {
     }
     /** Fetch a single document with html_content and build (or reuse) its EPUB. */
     async documentToEpub(id) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const outputPath = path.join(this.cacheDir, `readwise-${sanitizeId(id)}.epub`);
         if (fs.existsSync(outputPath)) {
             return outputPath;
@@ -168,14 +168,25 @@ export default class ReadwiseProvider {
         if (!doc) {
             throw new Error(`Document ${id} not found`);
         }
-        const html = doc.html_content && doc.html_content.trim().length > 0
+        let html = doc.html_content && doc.html_content.trim().length > 0
             ? doc.html_content
             : `<h1>${escapeHtml((_b = doc.title) !== null && _b !== void 0 ? _b : "Untitled")}</h1>` +
                 (doc.summary ? `<p>${escapeHtml(doc.summary)}</p>` : "") +
                 (doc.url ? `<p><a href="${escapeHtml(doc.url)}">${escapeHtml(doc.url)}</a></p>` : "");
+        // Image handling. Some e-ink EPUB engines (incl. Crosspoint) can't decode
+        // webp, which epub-gen embeds as-is; that can make the whole book fail to
+        // open. `strip` removes images entirely for maximum compatibility.
+        //   READWISE_IMAGES = keep (default) | strip
+        const imageMode = (_c = process.env.READWISE_IMAGES) !== null && _c !== void 0 ? _c : "keep";
+        if (imageMode === "strip") {
+            html = html
+                .replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, "")
+                .replace(/<img\b[^>]*>/gi, "")
+                .replace(/<source\b[^>]*>/gi, "");
+        }
         return htmlToEpub({
             html,
-            title: ((_c = doc.title) === null || _c === void 0 ? void 0 : _c.trim()) || doc.url || "Untitled",
+            title: ((_d = doc.title) === null || _d === void 0 ? void 0 : _d.trim()) || doc.url || "Untitled",
             author: doc.author || doc.site_name || null,
             publisher: doc.site_name || (doc.url ? hostOf(doc.url) : null),
             outputPath,
