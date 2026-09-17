@@ -247,11 +247,23 @@ export default class ReadwiseProvider {
       throw new Error(`Document ${id} not found`);
     }
 
-    const html = doc.html_content && doc.html_content.trim().length > 0
+    let html = doc.html_content && doc.html_content.trim().length > 0
       ? doc.html_content
       : `<h1>${escapeHtml(doc.title ?? "Untitled")}</h1>` +
         (doc.summary ? `<p>${escapeHtml(doc.summary)}</p>` : "") +
         (doc.url ? `<p><a href="${escapeHtml(doc.url)}">${escapeHtml(doc.url)}</a></p>` : "");
+
+    // Image handling. Some e-ink EPUB engines (incl. Crosspoint) can't decode
+    // webp, which epub-gen embeds as-is; that can make the whole book fail to
+    // open. `strip` removes images entirely for maximum compatibility.
+    //   READWISE_IMAGES = keep (default) | strip
+    const imageMode = process.env.READWISE_IMAGES ?? "keep";
+    if (imageMode === "strip") {
+      html = html
+        .replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, "")
+        .replace(/<img\b[^>]*>/gi, "")
+        .replace(/<source\b[^>]*>/gi, "");
+    }
 
     return htmlToEpub({
       html,
