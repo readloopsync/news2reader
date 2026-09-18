@@ -56,21 +56,28 @@ export default class ReadwiseProvider {
     cachePathFor(id) {
         return path.join(this.cacheDir, `readwise-${sanitizeId(id)}.epub`);
     }
+    /**
+     * Render the Readwise navigation feed (the per-location sub-feeds). Exposed so
+     * the catalog root can serve it directly when Readwise is the only provider.
+     */
+    renderNavFeed(selfHref = "/opds/provider/readwise") {
+        const feed = new OPDSFeed({
+            id: "readwise",
+            links: { self: selfHref, start: "/opds", up: "/opds" },
+            title: "Readwise Reader",
+        });
+        feed.addEntries(this.FEEDS.map((entry) => ({
+            title: entry.name,
+            id: `readwise-${entry.id}`,
+            link: `/opds/provider/readwise/${entry.id}`,
+            content: entry.description,
+        })));
+        return feed.toXmlString();
+    }
     registerRoutes(app) {
         // Navigation feed: the per-location sub-feeds
         app.get("/opds/provider/readwise", (req, res) => {
-            const feed = new OPDSFeed({
-                id: "readwise",
-                links: { self: "/opds/provider/readwise", start: "/opds", up: "/opds" },
-                title: "Readwise Reader",
-            });
-            feed.addEntries(this.FEEDS.map((entry) => ({
-                title: entry.name,
-                id: `readwise-${entry.id}`,
-                link: `/opds/provider/readwise/${entry.id}`,
-                content: entry.description,
-            })));
-            res.type("application/xml").send(feed.toXmlString());
+            res.type("application/xml").send(this.renderNavFeed());
         });
         // Acquisition feeds (one per location)
         for (const entry of this.FEEDS) {

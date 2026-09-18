@@ -1,4 +1,4 @@
-var _a;
+var _a, _b;
 /**
  * This application generates OPDS feeds (https://specs.opds.io/opds-1.2)
  * based on items fetched from link aggregators, and EPUBs based on
@@ -41,8 +41,25 @@ const pocketProvider = new PocketProvider(app, configDir);
 const tildesProvider = new TildesProvider(app, configDir);
 const karakeepProvider = new KarakeepProvider(app, configDir);
 const readwiseProvider = new ReadwiseProvider(app, configDir);
+// Which providers to advertise at the catalog root. Default: all.
+// Set OPDS_PROVIDERS to a comma-separated list (e.g. "readwise") to run a
+// focused instance so readers don't have to scroll past sources they don't use.
+const providerFilter = ((_b = process.env.OPDS_PROVIDERS) !== null && _b !== void 0 ? _b : "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+const showAllProviders = providerFilter.length === 0;
+const providerEnabled = (key) => showAllProviders || providerFilter.includes(key);
+const onlyReadwise = !showAllProviders && providerFilter.length === 1 && providerFilter[0] === "readwise";
 // Catalog Root
 app.get("/opds", (req, res) => {
+    // Single-provider shortcut: when only Readwise is enabled, serve its feed as
+    // the root so readers land directly on the locations — no extra tap, and no
+    // need to hand-type a deep URL on an e-ink keyboard.
+    if (onlyReadwise && readwiseProvider.isConnected()) {
+        res.type("application/xml").send(readwiseProvider.renderNavFeed("/opds"));
+        return;
+    }
     const feed = new OPDSFeed({
         id: "foo",
         links: {
@@ -52,35 +69,22 @@ app.get("/opds", (req, res) => {
         title: "News2Reader Catalog Root",
         author: catalogAuthor,
     });
-    feed.addEntries([
-        // TODO: Make this more dynamic
-        {
-            title: "Hacker News",
-            id: "hn",
-            link: "/opds/provider/hackernews",
-            content: "Stories from Hacker News",
-        },
-        {
-            title: "Tildes",
-            id: "tildes",
-            link: "/opds/provider/tildes",
-            content: "Articles from Tildes",
-        },
-        {
-            title: "Karakeep",
-            id: "karakeep",
-            link: "/opds/provider/karakeep",
-            content: "Saved articles from your Karakeep account",
-        },
-        {
-            title: "Pocket",
-            id: "pocket",
-            link: "/opds/provider/pocket",
-            content: "Saved articles from your Pocket account",
-        },
-    ]);
-    // Only advertise Readwise when a token is configured
-    if (readwiseProvider.isConnected()) {
+    const entries = [];
+    if (providerEnabled("hackernews")) {
+        entries.push({ title: "Hacker News", id: "hn", link: "/opds/provider/hackernews", content: "Stories from Hacker News" });
+    }
+    if (providerEnabled("tildes")) {
+        entries.push({ title: "Tildes", id: "tildes", link: "/opds/provider/tildes", content: "Articles from Tildes" });
+    }
+    if (providerEnabled("karakeep")) {
+        entries.push({ title: "Karakeep", id: "karakeep", link: "/opds/provider/karakeep", content: "Saved articles from your Karakeep account" });
+    }
+    if (providerEnabled("pocket")) {
+        entries.push({ title: "Pocket", id: "pocket", link: "/opds/provider/pocket", content: "Saved articles from your Pocket account" });
+    }
+    feed.addEntries(entries);
+    // Only advertise Readwise when enabled and a token is configured
+    if (providerEnabled("readwise") && readwiseProvider.isConnected()) {
         feed.addEntry({
             title: "Readwise Reader",
             id: "readwise",
