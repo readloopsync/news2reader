@@ -71,6 +71,9 @@ export default class ReadwiseProvider {
   private readonly MAX_PAGES = Number(process.env.READWISE_MAX_PAGES ?? 3);
   private readonly LIST_TTL_MS = Number(process.env.READWISE_LIST_TTL_MS ?? 60_000);
   private listCache: Map<string, { fetchedAt: number; docs: ReaderDocument[] }> = new Map();
+  // id -> download filename (with the [rw-<id>] stamp), populated when listing
+  // or building so the content route can set a meaningful Content-Disposition.
+  private downloadNames: Map<string, string> = new Map();
 
   // Image transcoding
   private readonly IMG_MAX_WIDTH = Number(process.env.READWISE_IMG_MAX_WIDTH ?? 1000);
@@ -224,6 +227,13 @@ export default class ReadwiseProvider {
       res.on("close", release);
       try {
         const epubPath = await this.documentToEpub(id);
+        // Stamp the Readwise id into the download filename: it gives the file a
+        // real name in the reader's Files view, and lets the v2 read-state
+        // KOSync connector map the finished book back to its Reader document
+        // for archive-on-finish. The id is always present (from the route);
+        // the title is added when known. See docs/V2-READ-STATE.md.
+        const name = this.downloadNames.get(id) ?? `readwise [rw-${id}].epub`;
+        res.setHeader("Content-Disposition", contentDisposition(name));
         res.type("application/epub+zip").sendFile(epubPath);
       } catch (e) {
         console.error(`Readwise: failed to build EPUB for ${id}`, e);
@@ -301,6 +311,7 @@ export default class ReadwiseProvider {
       if (!pageCursor) break;
     }
     this.listCache.set(location, { fetchedAt: Date.now(), docs });
+    for (const doc of docs) this.downloadNames.set(doc.id, downloadFilename(doc));
     return docs;
   }
 
@@ -318,6 +329,7 @@ export default class ReadwiseProvider {
 
     const doc = data.results?.[0];
     if (!doc) throw new Error(`Document ${id} not found`);
+    this.downloadNames.set(id, downloadFilename(doc));
 
     let html =
       doc.html_content && doc.html_content.trim().length > 0
@@ -418,6 +430,32 @@ export default class ReadwiseProvider {
 
 function sanitizeId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+/**
+ * Download filename for a document: "<title> [rw-<id>].epub". The [rw-<id>]
+ * stamp is what the v2 read-state connector parses to map the finished book
+ * back to its Readwise Reader document. Title is sanitized and length-capped.
+ */
+function downloadFilename(doc: { id: string; title?: string; url?: string }): string {
+  const raw = (doc.title || doc.url || "Untitled").trim();
+  const safeTitle =
+    raw
+      .replace(/[\/\\:*?"<>|\x00-\x1f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80) || "Untitled";
+  return `${safeTitle} [rw-${doc.id}].epub`;
+}
+
+/**
+ * Build a Content-Disposition header value. Provides an ASCII-safe `filename`
+ * and an RFC 5987 `filename*` for the full UTF-8 name.
+ */
+function contentDisposition(name: string): string {
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "'");
+  const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 function stripImages(html: string): string {

@@ -15,6 +15,9 @@ export default class ReadwiseProvider {
         this.MAX_PAGES = Number((_d = process.env.READWISE_MAX_PAGES) !== null && _d !== void 0 ? _d : 3);
         this.LIST_TTL_MS = Number((_e = process.env.READWISE_LIST_TTL_MS) !== null && _e !== void 0 ? _e : 60000);
         this.listCache = new Map();
+        // id -> download filename (with the [rw-<id>] stamp), populated when listing
+        // or building so the content route can set a meaningful Content-Disposition.
+        this.downloadNames = new Map();
         // Image transcoding
         this.IMG_MAX_WIDTH = Number((_f = process.env.READWISE_IMG_MAX_WIDTH) !== null && _f !== void 0 ? _f : 1000);
         this.IMG_QUALITY = Number((_g = process.env.READWISE_IMG_QUALITY) !== null && _g !== void 0 ? _g : 80);
@@ -130,6 +133,7 @@ export default class ReadwiseProvider {
         }
         // On-demand EPUB for a single document
         app.get("/opds/provider/readwise/content.epub", async (req, res) => {
+            var _a;
             if (!this.isConnected()) {
                 res.status(401).send("Readwise is not configured. Set READWISE_TOKEN.");
                 return;
@@ -153,6 +157,13 @@ export default class ReadwiseProvider {
             res.on("close", release);
             try {
                 const epubPath = await this.documentToEpub(id);
+                // Stamp the Readwise id into the download filename: it gives the file a
+                // real name in the reader's Files view, and lets the v2 read-state
+                // KOSync connector map the finished book back to its Reader document
+                // for archive-on-finish. The id is always present (from the route);
+                // the title is added when known. See docs/V2-READ-STATE.md.
+                const name = (_a = this.downloadNames.get(id)) !== null && _a !== void 0 ? _a : `readwise [rw-${id}].epub`;
+                res.setHeader("Content-Disposition", contentDisposition(name));
                 res.type("application/epub+zip").sendFile(epubPath);
             }
             catch (e) {
@@ -235,6 +246,8 @@ export default class ReadwiseProvider {
                 break;
         }
         this.listCache.set(location, { fetchedAt: Date.now(), docs });
+        for (const doc of docs)
+            this.downloadNames.set(doc.id, downloadFilename(doc));
         return docs;
     }
     /** Fetch a single document with html_content and build (or reuse) its EPUB. */
@@ -252,6 +265,7 @@ export default class ReadwiseProvider {
         const doc = (_a = data.results) === null || _a === void 0 ? void 0 : _a[0];
         if (!doc)
             throw new Error(`Document ${id} not found`);
+        this.downloadNames.set(id, downloadFilename(doc));
         let html = doc.html_content && doc.html_content.trim().length > 0
             ? doc.html_content
             : `<h1>${escapeHtml((_b = doc.title) !== null && _b !== void 0 ? _b : "Untitled")}</h1>` +
@@ -355,6 +369,29 @@ export default class ReadwiseProvider {
 }
 function sanitizeId(id) {
     return id.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+/**
+ * Download filename for a document: "<title> [rw-<id>].epub". The [rw-<id>]
+ * stamp is what the v2 read-state connector parses to map the finished book
+ * back to its Readwise Reader document. Title is sanitized and length-capped.
+ */
+function downloadFilename(doc) {
+    const raw = (doc.title || doc.url || "Untitled").trim();
+    const safeTitle = raw
+        .replace(/[\/\\:*?"<>|\x00-\x1f]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 80) || "Untitled";
+    return `${safeTitle} [rw-${doc.id}].epub`;
+}
+/**
+ * Build a Content-Disposition header value. Provides an ASCII-safe `filename`
+ * and an RFC 5987 `filename*` for the full UTF-8 name.
+ */
+function contentDisposition(name) {
+    const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "'");
+    const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+    return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 function stripImages(html) {
     return html
