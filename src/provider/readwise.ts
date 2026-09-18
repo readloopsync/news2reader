@@ -77,6 +77,10 @@ export default class ReadwiseProvider {
     .filter(Boolean);
 
   private readonly MAX_PAGES = Number(process.env.READWISE_MAX_PAGES ?? 3);
+  // Max entries per feed. Big feeds (100+ entries) can exceed the RAM of a
+  // constrained reader (e.g. Crosspoint on an ESP32-C3) parsing the OPDS XML,
+  // especially over TLS — capping keeps feeds small and reliable.
+  private readonly FEED_LIMIT = Number(process.env.READWISE_FEED_LIMIT ?? 40);
   private readonly LIST_TTL_MS = Number(process.env.READWISE_LIST_TTL_MS ?? 60_000);
   private listCache: Map<string, { fetchedAt: number; docs: ReaderDocument[] }> = new Map();
   // id -> download filename (with the [rw-<id>] stamp), populated when listing
@@ -317,10 +321,13 @@ export default class ReadwiseProvider {
       docs.push(...(data.results ?? []));
       pageCursor = data.nextPageCursor ?? undefined;
       if (!pageCursor) break;
+      // Stop paging once we have enough to fill the (capped) feed.
+      if (this.FEED_LIMIT > 0 && docs.length >= this.FEED_LIMIT) break;
     }
-    const filtered = this.CATEGORIES.length
+    let filtered = this.CATEGORIES.length
       ? docs.filter((d) => d.category && this.CATEGORIES.includes(d.category.toLowerCase()))
       : docs;
+    if (this.FEED_LIMIT > 0) filtered = filtered.slice(0, this.FEED_LIMIT);
     this.listCache.set(location, { fetchedAt: Date.now(), docs: filtered });
     for (const doc of filtered) this.downloadNames.set(doc.id, downloadFilename(doc));
     return filtered;

@@ -91,6 +91,7 @@ articles and newsletters come through intact.
 | `READWISE_TOKEN`          | _(none)_               | Required to enable the Readwise provider.          |
 | `READWISE_BASE_URL`       | `https://readwise.io`  | Override for testing.                              |
 | `READWISE_CATEGORIES`     | _(all)_                | Comma-separated category allow-list (e.g. `article,email,rss,pdf,epub`). Reader also has `tweet`/`video`/etc. that make poor EPUBs on e-ink; set this to keep feeds to readable types. |
+| `READWISE_FEED_LIMIT`     | `40`                   | Max entries per feed. Large feeds (100+) can exceed the RAM of constrained readers (e.g. Crosspoint/ESP32-C3) parsing the OPDS XML over TLS; keep it modest. `0` = no limit. |
 | `READWISE_MAX_PAGES`      | `3`                    | List pages to page through per feed (100 docs/page); bounded to respect the Reader API's 20 req/min limit. |
 | `READWISE_LIST_TTL_MS`    | `60000`                | In-memory cache TTL for list responses per feed.  |
 
