@@ -68,6 +68,14 @@ export default class ReadwiseProvider {
   private readonly TOKEN = process.env.READWISE_TOKEN ?? null;
   private readonly PORT = String(process.env.PORT ?? "8080");
 
+  // Optional category allow-list (e.g. "article,email,rss,pdf,epub"). Reader
+  // categories include video/tweet/podcast which make poor EPUBs on e-ink;
+  // set this to keep feeds to readable types. Empty = all categories.
+  private readonly CATEGORIES = (process.env.READWISE_CATEGORIES ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
   private readonly MAX_PAGES = Number(process.env.READWISE_MAX_PAGES ?? 3);
   private readonly LIST_TTL_MS = Number(process.env.READWISE_LIST_TTL_MS ?? 60_000);
   private listCache: Map<string, { fetchedAt: number; docs: ReaderDocument[] }> = new Map();
@@ -310,9 +318,12 @@ export default class ReadwiseProvider {
       pageCursor = data.nextPageCursor ?? undefined;
       if (!pageCursor) break;
     }
-    this.listCache.set(location, { fetchedAt: Date.now(), docs });
-    for (const doc of docs) this.downloadNames.set(doc.id, downloadFilename(doc));
-    return docs;
+    const filtered = this.CATEGORIES.length
+      ? docs.filter((d) => d.category && this.CATEGORIES.includes(d.category.toLowerCase()))
+      : docs;
+    this.listCache.set(location, { fetchedAt: Date.now(), docs: filtered });
+    for (const doc of filtered) this.downloadNames.set(doc.id, downloadFilename(doc));
+    return filtered;
   }
 
   /** Fetch a single document with html_content and build (or reuse) its EPUB. */

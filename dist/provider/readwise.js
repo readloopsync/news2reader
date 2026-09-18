@@ -8,22 +8,29 @@ import { htmlToEpub } from "../epub.js";
 const IMG_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 export default class ReadwiseProvider {
     constructor(app, configDir) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
         this.BASE_URL = (_a = process.env.READWISE_BASE_URL) !== null && _a !== void 0 ? _a : "https://readwise.io";
         this.TOKEN = (_b = process.env.READWISE_TOKEN) !== null && _b !== void 0 ? _b : null;
         this.PORT = String((_c = process.env.PORT) !== null && _c !== void 0 ? _c : "8080");
-        this.MAX_PAGES = Number((_d = process.env.READWISE_MAX_PAGES) !== null && _d !== void 0 ? _d : 3);
-        this.LIST_TTL_MS = Number((_e = process.env.READWISE_LIST_TTL_MS) !== null && _e !== void 0 ? _e : 60000);
+        // Optional category allow-list (e.g. "article,email,rss,pdf,epub"). Reader
+        // categories include video/tweet/podcast which make poor EPUBs on e-ink;
+        // set this to keep feeds to readable types. Empty = all categories.
+        this.CATEGORIES = ((_d = process.env.READWISE_CATEGORIES) !== null && _d !== void 0 ? _d : "")
+            .split(",")
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean);
+        this.MAX_PAGES = Number((_e = process.env.READWISE_MAX_PAGES) !== null && _e !== void 0 ? _e : 3);
+        this.LIST_TTL_MS = Number((_f = process.env.READWISE_LIST_TTL_MS) !== null && _f !== void 0 ? _f : 60000);
         this.listCache = new Map();
         // id -> download filename (with the [rw-<id>] stamp), populated when listing
         // or building so the content route can set a meaningful Content-Disposition.
         this.downloadNames = new Map();
         // Image transcoding
-        this.IMG_MAX_WIDTH = Number((_f = process.env.READWISE_IMG_MAX_WIDTH) !== null && _f !== void 0 ? _f : 1000);
-        this.IMG_QUALITY = Number((_g = process.env.READWISE_IMG_QUALITY) !== null && _g !== void 0 ? _g : 80);
+        this.IMG_MAX_WIDTH = Number((_g = process.env.READWISE_IMG_MAX_WIDTH) !== null && _g !== void 0 ? _g : 1000);
+        this.IMG_QUALITY = Number((_h = process.env.READWISE_IMG_QUALITY) !== null && _h !== void 0 ? _h : 80);
         // e-ink displays are grayscale; pre-converting (with contrast normalization)
         // renders cleaner than letting the device reduce a color image itself.
-        this.IMG_GRAYSCALE = ((_h = process.env.READWISE_IMG_GRAYSCALE) !== null && _h !== void 0 ? _h : "1") !== "0";
+        this.IMG_GRAYSCALE = ((_j = process.env.READWISE_IMG_GRAYSCALE) !== null && _j !== void 0 ? _j : "1") !== "0";
         this.placeholderJpeg = null;
         this.sharpModule = null;
         // Per-process secret guarding the internal image route (which is exempt from
@@ -34,8 +41,8 @@ export default class ReadwiseProvider {
         this.liveDownloads = 0;
         // Background cache warming (so cold-build latency never hits a reader's
         // download timeout): pre-build the top N docs of a feed when it's opened.
-        this.WARM_COUNT = Number((_j = process.env.READWISE_WARM_COUNT) !== null && _j !== void 0 ? _j : 8);
-        this.WARM_INTERVAL_MS = Number((_k = process.env.READWISE_WARM_INTERVAL_MS) !== null && _k !== void 0 ? _k : 4000);
+        this.WARM_COUNT = Number((_k = process.env.READWISE_WARM_COUNT) !== null && _k !== void 0 ? _k : 8);
+        this.WARM_INTERVAL_MS = Number((_l = process.env.READWISE_WARM_INTERVAL_MS) !== null && _l !== void 0 ? _l : 4000);
         this.warmQueue = [];
         this.warmSet = new Set();
         this.warming = false;
@@ -245,10 +252,13 @@ export default class ReadwiseProvider {
             if (!pageCursor)
                 break;
         }
-        this.listCache.set(location, { fetchedAt: Date.now(), docs });
-        for (const doc of docs)
+        const filtered = this.CATEGORIES.length
+            ? docs.filter((d) => d.category && this.CATEGORIES.includes(d.category.toLowerCase()))
+            : docs;
+        this.listCache.set(location, { fetchedAt: Date.now(), docs: filtered });
+        for (const doc of filtered)
             this.downloadNames.set(doc.id, downloadFilename(doc));
-        return docs;
+        return filtered;
     }
     /** Fetch a single document with html_content and build (or reuse) its EPUB. */
     async documentToEpub(id) {
