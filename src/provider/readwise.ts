@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import got from "got";
 import { Express, Request, Response } from "express";
@@ -79,6 +80,10 @@ export default class ReadwiseProvider {
   private readonly IMG_GRAYSCALE = (process.env.READWISE_IMG_GRAYSCALE ?? "1") !== "0";
   private placeholderJpeg: Buffer | null = null;
   private sharpModule: any = null;
+  // Per-process secret guarding the internal image route (which is exempt from
+  // Basic auth because epub-gen fetches it server-side). Prevents the route
+  // being abused as an open image proxy when the server is exposed publicly.
+  private readonly imgSecret = randomBytes(16).toString("hex");
 
   // Number of live EPUB downloads in flight; background warming yields to these.
   private liveDownloads = 0;
@@ -230,7 +235,11 @@ export default class ReadwiseProvider {
     // Image transcoding proxy (used by transcode mode). epub-gen fetches the
     // rewritten <img src> (which ends in `.jpg`) from here; we fetch the
     // original image and return a downscaled JPEG that e-ink readers can decode.
-    app.get("/opds/provider/readwise/img/:file", async (req: Request, res: Response) => {
+    app.get("/opds/provider/readwise/img/:secret/:file", async (req: Request, res: Response) => {
+      if (req.params.secret !== this.imgSecret) {
+        res.status(404).end();
+        return;
+      }
       const file = String(req.params.file ?? "");
       const b64 = file.replace(/\.jpe?g$/i, "");
       let src = "";
@@ -333,7 +342,7 @@ export default class ReadwiseProvider {
   /** Rewrite <img> sources to the transcoding proxy (ending in `.jpg`). */
   private rewriteImagesToProxy(html: string): string {
     html = html.replace(/<source\b[^>]*>/gi, "").replace(/<\/?picture\b[^>]*>/gi, "");
-    const proxyBase = `http://127.0.0.1:${this.PORT}/opds/provider/readwise/img`;
+    const proxyBase = `http://127.0.0.1:${this.PORT}/opds/provider/readwise/img/${this.imgSecret}`;
     return html.replace(/<img\b[^>]*>/gi, (tag) => {
       const t = tag.replace(/\bsrcset\s*=\s*("[^"]*"|'[^']*')/gi, "");
       const m = t.match(/\bsrc\s*=\s*("([^"]*)"|'([^']*)')/i);

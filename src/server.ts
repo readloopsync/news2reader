@@ -4,6 +4,7 @@
  * those links upon request.
  */
 import fs from "node:fs";
+import { timingSafeEqual } from "node:crypto";
 import express, { Express, Request, Response } from "express";
 import xdg from "@folder/xdg";
 import { OPDSFeed } from "./opds.js";
@@ -33,6 +34,30 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// Optional HTTP Basic auth for the whole server. Set OPDS_AUTH_USER and
+// OPDS_AUTH_PASS to require credentials — essential when exposing the server
+// publicly (e.g. via a tunnel). Crosspoint's OPDS client has username/password
+// fields, so Basic auth works on-device.
+const AUTH_USER = process.env.OPDS_AUTH_USER;
+const AUTH_PASS = process.env.OPDS_AUTH_PASS;
+if (AUTH_USER && AUTH_PASS) {
+  const expected = Buffer.from(`${AUTH_USER}:${AUTH_PASS}`);
+  app.use((req, res, next) => {
+    // The internal image-transcode route is only called server-side during EPUB
+    // generation and self-guards with a per-process secret, so exempt it here
+    // (otherwise epub-gen's own fetches would be rejected).
+    if (req.path.startsWith("/opds/provider/readwise/img/")) return next();
+    const header = req.headers.authorization ?? "";
+    if (header.startsWith("Basic ")) {
+      const got = Buffer.from(header.slice(6), "base64");
+      if (got.length === expected.length && timingSafeEqual(got, expected)) return next();
+    }
+    res.set("WWW-Authenticate", 'Basic realm="Readloop"');
+    res.status(401).send("Authentication required");
+  });
+  console.log("HTTP Basic auth is ENABLED");
+}
 
 const catalogAuthor = {
   name: "news2reader",
