@@ -34,7 +34,7 @@ const RAW_RUNTIME_STATE =
           ["@types/jsdom", "npm:21.1.7"],\
           ["@types/node", "npm:22.10.1"],\
           ["concurrently", "npm:8.2.2"],\
-          ["epub-gen", "npm:0.1.0"],\
+          ["epub-gen", "patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch::version=0.1.0&hash=b20f63"],\
           ["express", "npm:4.21.2"],\
           ["feed", "npm:4.2.2"],\
           ["got", "npm:12.6.1"],\
@@ -1841,15 +1841,15 @@ const RAW_RUNTIME_STATE =
       }]\
     ]],\
     ["epub-gen", [\
-      ["npm:0.1.0", {\
-        "packageLocation": "./.yarn/cache/epub-gen-npm-0.1.0-df31330f1f-1e66e9a699.zip/node_modules/epub-gen/",\
+      ["patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch::version=0.1.0&hash=b20f63", {\
+        "packageLocation": "./.yarn/cache/epub-gen-patch-1f9ebe795a-c1acd3896d.zip/node_modules/epub-gen/",\
         "packageDependencies": [\
           ["archiver", "npm:3.1.1"],\
           ["cheerio", "npm:0.22.0"],\
           ["diacritics", "npm:1.3.0"],\
           ["ejs", "npm:2.7.4"],\
           ["entities", "npm:1.1.2"],\
-          ["epub-gen", "npm:0.1.0"],\
+          ["epub-gen", "patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch::version=0.1.0&hash=b20f63"],\
           ["fs-extra", "npm:7.0.1"],\
           ["mime", "npm:2.6.0"],\
           ["q", "npm:1.5.1"],\
@@ -3209,7 +3209,7 @@ const RAW_RUNTIME_STATE =
           ["@types/jsdom", "npm:21.1.7"],\
           ["@types/node", "npm:22.10.1"],\
           ["concurrently", "npm:8.2.2"],\
-          ["epub-gen", "npm:0.1.0"],\
+          ["epub-gen", "patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch::version=0.1.0&hash=b20f63"],\
           ["express", "npm:4.21.2"],\
           ["feed", "npm:4.2.2"],\
           ["got", "npm:12.6.1"],\

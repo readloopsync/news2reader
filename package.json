@@ -20,7 +20,7 @@
     "@folder/xdg": "^4.0.1",
     "@mozilla/readability": "^0.6.0",
     "@types/jsdom": "^21.1.7",
-    "epub-gen": "^0.1.0",
+    "epub-gen": "patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch",
     "express": "^4.21.2",
     "feed": "^4.2.2",
     "got": "^12.6.1",

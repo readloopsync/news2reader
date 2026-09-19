@@ -1,0 +1,12 @@
+diff --git a/templates/epub3/content.opf.ejs b/templates/epub3/content.opf.ejs
+index c6cb5c6f6cbdcd24758dc24fcca2a8a7ac6f5ff3..4af3724f517d061027b22b1e29190c67a926c5b5 100644
+--- a/templates/epub3/content.opf.ejs
++++ b/templates/epub3/content.opf.ejs
+@@ -62,7 +62,6 @@
+                 <itemref idref="content_<%= index %>_<%= content.id %>"/>
+             <% } %>
+         <% }) %>
+-        <itemref idref="toc" />
+         <% content.forEach(function(content, index){ %>
+             <% if(!content.beforeToc && !content.excludeFromToc){ %>
+                 <itemref idref="content_<%= index %>_<%= content.id %>"/>

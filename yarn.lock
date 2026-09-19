@@ -1527,7 +1527,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"epub-gen@npm:^0.1.0":
+"epub-gen@npm:0.1.0":
   version: 0.1.0
   resolution: "epub-gen@npm:0.1.0"
   dependencies:
@@ -1544,6 +1544,26 @@ __metadata:
     underscore: "npm:^1.9.1"
     uslug: "npm:^1.0.4"
   checksum: 10/1e66e9a699e1309faee3c4808cfe4603a3ae7503aa608e2cb32c7687bf44c54912de097656e1cf50892407a7bb82974eac8f5e1f9412fae80d93acc2d57ff5c1
+  languageName: node
+  linkType: hard
+
+"epub-gen@patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch":
+  version: 0.1.0
+  resolution: "epub-gen@patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch::version=0.1.0&hash=b20f63"
+  dependencies:
+    archiver: "npm:^3.0.0"
+    cheerio: "npm:^0.22.0"
+    diacritics: "npm:^1.3.0"
+    ejs: "npm:^2.6.1"
+    entities: "npm:^1.1.2"
+    fs-extra: "npm:^7.0.1"
+    mime: "npm:^2.4.0"
+    q: "npm:^1.5.1"
+    rimraf: "npm:^2.6.3"
+    superagent: "npm:^3.8.3"
+    underscore: "npm:^1.9.1"
+    uslug: "npm:^1.0.4"
+  checksum: 10/c1acd3896d79a1152b7f56a2ab323267ca876481c9301754116b73e0cf555ea2513c46cbfb83a171627fe9dfb794b4ebca501632b0207a4f379701ce429157da
   languageName: node
   linkType: hard
 
@@ -2747,7 +2767,7 @@ __metadata:
     "@types/jsdom": "npm:^21.1.7"
     "@types/node": "npm:^22.0.3"
     concurrently: "npm:^8.2.2"
-    epub-gen: "npm:^0.1.0"
+    epub-gen: "patch:epub-gen@npm%3A0.1.0#~/.yarn/patches/epub-gen-npm-0.1.0-df31330f1f.patch"
     express: "npm:^4.21.2"
     feed: "npm:^4.2.2"
     got: "npm:^12.6.1"
